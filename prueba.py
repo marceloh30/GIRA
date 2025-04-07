@@ -2,6 +2,7 @@ import cv2
 import mediapipe as mp
 import pygame  # Para cargar animaciones del avatar
 import numpy as np
+import math
 
 # Inicializar pygame
 pygame.init()
@@ -13,10 +14,10 @@ pose = mp_pose.Pose()
 
 # Cargar animaciones del avatar
 # Crear una superficie de 200x200 píxeles y llenarla de un color
-avatar_bored_surf = pygame.Surface((200, 200), pygame.SRCALPHA)
+avatar_bored_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
 avatar_bored_surf.fill((255, 0, 0, 100))  # Rojo semitransparente
 
-avatar_confused_surf = pygame.Surface((200, 200), pygame.SRCALPHA)
+avatar_confused_surf = pygame.Surface((100, 100), pygame.SRCALPHA)
 avatar_confused_surf.fill((0, 255, 0, 100))  # Verde semitransparente
 
 # Convertir la superficie de pygame a un array de NumPy
@@ -38,7 +39,27 @@ if not cap.isOpened():
     print("No se pudo abrir la cámara")
     exit()
 
-def detect_brazos_cruzados(landmarks, mp_pose, wrist_threshold=0.15):
+def euclidean_distance(p1, p2):
+    """Calcula la distancia euclidiana entre dos puntos."""
+    return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+
+def detect_crossed_arms_relative(landmarks, mp_pose, x_threshold=0.1):
+    """
+    Detecta brazos cruzados calculando distancia entre munecas y hombros contrarios
+    """
+    left_wrist = landmarks.landmark[mp_pose.PoseLandmark.LEFT_WRIST]
+    right_wrist = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_WRIST]
+    left_shoulder = landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
+    right_shoulder = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+
+    
+    # Condicion en eje x muneca-hombro: positivo si distancia en x son menores a (x_threshold)
+    left_crossed = abs(right_wrist.x - left_shoulder.x) < (x_threshold)
+    right_crossed = abs(left_wrist.x - right_shoulder.x) < (x_threshold)
+
+    return left_crossed and right_crossed
+'''
+def detect_brazos_cruzados(landmarks, mp_pose, ratio_threshold=0.8):
     """
     Detecta si los brazos están cruzados basándose en los landmarks.
     Condiciones:
@@ -52,12 +73,24 @@ def detect_brazos_cruzados(landmarks, mp_pose, wrist_threshold=0.15):
     right_shoulder = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER]
     shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
 
-    left_wrist_crossed = left_wrist.x > right_shoulder.x and abs(left_wrist.x - shoulder_center_x) < wrist_threshold
-    right_wrist_crossed = right_wrist.x < left_shoulder.x and abs(right_wrist.x - shoulder_center_x) < wrist_threshold
 
-    return left_wrist_crossed and right_wrist_crossed
+    # Distancias para el brazo izquierdo
+    d_left_opp = euclidean_distance(left_wrist, right_shoulder)   # distancia a hombro derecho
+    d_left_same = euclidean_distance(left_wrist, left_shoulder)     # distancia a hombro izquierdo
+    
+    # Distancias para el brazo derecho
+    d_right_opp = euclidean_distance(right_wrist, left_shoulder)    # distancia a hombro izquierdo
+    d_right_same = euclidean_distance(right_wrist, right_shoulder)  # distancia a hombro derecho
+    
+    left_crossed = d_left_opp < ratio_threshold * d_left_same
+    right_crossed = d_right_opp < ratio_threshold * d_right_same
 
-def detect_hombros_caidos(landmarks, mp_pose, posture_threshold=0.1):
+    # Para debug: se pueden imprimir las distancias
+    # print(f"Left: d_opp={d_left_opp:.3f}, d_same={d_left_same:.3f}; Right: d_opp={d_right_opp:.3f}, d_same={d_right_same:.3f}")
+    
+    return left_crossed and right_crossed
+'''
+def detect_hombros_caidos(landmarks, mp_pose, posture_threshold=0.25):
     """
     Detecta una postura encogida (hombros caídos) comparando la posición vertical
     promedio de los hombros con la de las caderas.
@@ -94,18 +127,22 @@ while True:
             connection_drawing_spec=mp_drawing.DrawingSpec(color=(255,0,0), thickness=2)
         )
 
-        left_wrist = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_WRIST]
-        right_wrist = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_WRIST]
-        left_shoulder = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_SHOULDER]
-        right_shoulder = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_SHOULDER]
-        
-        # Ejemplo simplificado: si la muñeca izquierda está cerca del hombro derecho
-        if abs(left_wrist.x - right_shoulder.x) < 0.1:
-            cv2.putText(frame, "BRAZOS CRUZADOS DETECTADOS", (50, 50), 
+        # Detección de brazos cruzados
+        if detect_crossed_arms_relative(results.pose_landmarks, mp_pose):
+            cv2.putText(frame, "BRAZOS CRUZADOS", (50, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-            # Superponer el avatar aburrido en la esquina superior izquierda
+            # Superponer avatar aburrido
             h, w, _ = avatar_bored.shape
             frame[0:h, 0:w] = avatar_bored
+
+        # Detección de postura encogida
+        if detect_hombros_caidos(results.pose_landmarks, mp_pose):
+            cv2.putText(frame, "POSTURA ENCOGIDA", (50, 100),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            # Opcionalmente, se puede superponer otro avatar (por ejemplo, avatar_confused)
+            h, w, _ = avatar_confused.shape
+            frame[0:h, w:w*2] = avatar_confused  # Se coloca en otra parte del frame
+
 
     cv2.imshow("Practica de presentacion", frame)
     
