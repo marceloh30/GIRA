@@ -2,16 +2,81 @@ import cv2
 import mediapipe as mp
 import math
 
-# Inicializar Face Mesh con refine_landmarks=True para obtener los landmarks del iris.
+# Inicializar MediaPipe Pose (para detectar la inclinación de la cabeza)
+mp_pose = mp.solutions.pose
+mp_drawing_pose = mp.solutions.drawing_utils  # Para dibujar puntos y conexiones de Pose
+pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+
+# Inicializar MediaPipe Face Mesh (para detectar el iris y el contacto visual)
 mp_face_mesh = mp.solutions.face_mesh
-mp_drawing = mp.solutions.drawing_utils
+mp_drawing_face = mp.solutions.drawing_utils  # Para dibujar landmarks faciales
 face_mesh = mp_face_mesh.FaceMesh(
     max_num_faces=1,
-    refine_landmarks=True,  # Esto habilita los landmarks del iris
+    refine_landmarks=True,  # Habilita los landmarks del iris
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5)
 
+def euclidean_distance(p1, p2):
+    return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
+def detect_head_tilt_down_v2(pose_landmarks, threshold=-0.1):
+    """
+    Detecta si la cabeza está inclinada hacia abajo usando el landmark de la nariz.
+    Se compara la posición vertical de la nariz (índice 0) con el promedio de los hombros (índices 11 y 12)
+    y se normaliza por el ancho de los hombros.
+    
+    En una postura erguida, la diferencia (nariz.y - hombros_avg.y) suele ser más negativa.
+    Si la cabeza se inclina hacia abajo, la diferencia se acerca a 0.
+    Si norm_diff > threshold (por ejemplo, -0.1), se detecta inclinación hacia abajo.
+    """
+    try:
+        nose = pose_landmarks.landmark[0]
+        left_shoulder = pose_landmarks.landmark[11]
+        right_shoulder = pose_landmarks.landmark[12]
+    except Exception as e:
+        return False
 
+    shoulder_avg_y = (left_shoulder.y + right_shoulder.y) / 2
+    shoulder_width = euclidean_distance(left_shoulder, right_shoulder)
+    if shoulder_width == 0:
+        return False
+
+    diff = nose.y - shoulder_avg_y  # En coordenadas normalizadas: valores mayores indican posición más baja.
+    norm_diff = diff / shoulder_width  # Normalizamos para compensar la distancia a la cámara.
+
+    # Debug: descomenta para ver los valores en consola.
+    # print(f"nose.y: {nose.y:.3f}, shoulder_avg_y: {shoulder_avg_y:.3f}, norm_diff: {norm_diff:.3f}")
+
+    return norm_diff > threshold
+
+def detect_head_tilt_down(pose_landmarks, threshold=0.5):
+    """
+    Detecta si la cabeza está inclinada hacia abajo usando los landmarks de Pose.
+    Se compara el promedio vertical (y) de los ojos (índices 2 y 5) con el promedio
+    de los hombros (índices 11 y 12) y se normaliza con el ancho de los hombros.
+    """
+    # Verifica que existan los landmarks necesarios
+    try:
+        left_eye = pose_landmarks.landmark[2]   # ojo izquierdo (ajustar si es necesario)
+        right_eye = pose_landmarks.landmark[5]    # ojo derecho
+        left_shoulder = pose_landmarks.landmark[11]
+        right_shoulder = pose_landmarks.landmark[12]
+    except:
+        return False
+
+    eye_avg_y = (left_eye.y + right_eye.y) / 2
+    shoulder_avg_y = (left_shoulder.y + right_shoulder.y) / 2
+
+    shoulder_width = euclidean_distance(left_shoulder, right_shoulder)
+    if shoulder_width == 0:
+        return False
+
+    diff = eye_avg_y - shoulder_avg_y
+    norm_diff = diff / shoulder_width
+
+    # Debug: descomenta para ver los valores
+    # print(f"Head Tilt norm_diff: {norm_diff:.3f}")
+
+    return norm_diff > threshold
 
 def average_landmarks(face_landmarks, indices):
     """Calcula el promedio (x, y) de los landmarks indicados."""
@@ -23,64 +88,35 @@ def average_landmarks(face_landmarks, indices):
     return x / count, y / count
 
 def detect_eye_contact_iris(face_landmarks, threshold_ratio=0.1):
-    # Para el ojo izquierdo:
+    """
+    Determina el contacto visual calculando la diferencia relativa entre el centro del iris y el centro del ojo.
+    Para el ojo izquierdo se usan los índices 33 y 133 para las esquinas y 468 para el iris.
+    Para el ojo derecho se usan 362 y 263 para las esquinas y 473 para el iris.
+    Se normaliza la diferencia dividiéndola por el ancho del ojo.
+    """
+    # Ojo izquierdo
     left_eye_left_corner = face_landmarks.landmark[33]
     left_eye_right_corner = face_landmarks.landmark[133]
     left_eye_width = abs(left_eye_right_corner.x - left_eye_left_corner.x)
     left_iris_center = face_landmarks.landmark[468]
-    left_eye_center = (left_eye_left_corner.x + left_eye_right_corner.x) / 2
+    left_eye_center = ( (left_eye_left_corner.x + left_eye_right_corner.x) / 2 )
     diff_left = abs(left_iris_center.x - left_eye_center)
-    normalized_left = diff_left / left_eye_width
+    normalized_left = diff_left / left_eye_width if left_eye_width else float('inf')
 
-    # Para el ojo derecho:
+    # Ojo derecho
     right_eye_left_corner = face_landmarks.landmark[362]
     right_eye_right_corner = face_landmarks.landmark[263]
     right_eye_width = abs(right_eye_right_corner.x - right_eye_left_corner.x)
     right_iris_center = face_landmarks.landmark[473]
-    right_eye_center = ((right_eye_left_corner.x + right_eye_right_corner.x) / 2)
+    right_eye_center = ( (right_eye_left_corner.x + right_eye_right_corner.x) / 2 )
     diff_right = abs(right_iris_center.x - right_eye_center)
-    normalized_right = diff_right / right_eye_width
+    normalized_right = diff_right / right_eye_width if right_eye_width else float('inf')
 
     # Debug
     print(f"Normalized Left: {normalized_left:.3f}, Normalized Right: {normalized_right:.3f}")
 
     return normalized_left < threshold_ratio and normalized_right < threshold_ratio
-'''
-def detect_eye_contact_iris(face_landmarks, threshold=0.1):
-    """
-    Determina el contacto visual calculando el centro de cada iris y comparándolo
-    con el centro del ojo (definido como el promedio de las esquinas internas y externas).
-    Si la diferencia es menor que 'threshold' para ambos ojos, se considera que hay contacto visual.
-    """
-    # Para el ojo izquierdo:
-    # Esquinas: índice 33 (externa) y 133 (interna)
-    left_eye_center = ((face_landmarks.landmark[33].x + face_landmarks.landmark[133].x) / 2,
-                       (face_landmarks.landmark[33].y + face_landmarks.landmark[133].y) / 2)
-    # Iris: índices 474, 475, 476, 477
-    left_iris_center = average_landmarks(face_landmarks, [474, 475, 476, 477])
-    
-    # Para el ojo derecho:
-    # Esquinas: índice 263 (externa) y 362 (interna)
-    right_eye_center = ((face_landmarks.landmark[263].x + face_landmarks.landmark[362].x) / 2,
-                        (face_landmarks.landmark[263].y + face_landmarks.landmark[362].y) / 2)
-    # Iris: índices 469, 470, 471, 472
-    right_iris_center = average_landmarks(face_landmarks, [469, 470, 471, 472])
-    
-    # Calcular la diferencia absoluta en la dirección x (horizontal) para cada ojo
-    diff_left = abs(left_iris_center[0] - left_eye_center[0])
-    diff_right = abs(right_iris_center[0] - right_eye_center[0])
-    
-    print(f"Izquierdo: diff={diff_left:.3f}, Derecho: diff={diff_right:.3f}")
-    
-    # También se puede evaluar la diferencia vertical si se desea (aquí nos centramos en la horizontal)
-    # diff_left_y = abs(left_iris_center[1] - left_eye_center[1])
-    # diff_right_y = abs(right_iris_center[1] - right_eye_center[1])
-    
-    # Debug: Puedes imprimir los valores para ajustar el umbral
-    # print(f"Izquierdo: diff={diff_left:.3f}, Derecho: diff={diff_right:.3f}")
-    
-    return diff_left < threshold and diff_right < threshold
-'''
+
 # Abrir la cámara
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
@@ -93,37 +129,52 @@ while True:
         break
 
     frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = face_mesh.process(frame_rgb)
     
-    if results.multi_face_landmarks:
-        for face_landmarks in results.multi_face_landmarks:
-            # Dibujar la malla facial (opcional)
-            mp_drawing.draw_landmarks(
+    # Procesar la imagen con ambas soluciones
+    results_pose = pose.process(frame_rgb)
+    results_face = face_mesh.process(frame_rgb)
+    
+    # Detección de inclinación de cabeza usando Pose
+    if results_pose.pose_landmarks:
+        mp_drawing_pose.draw_landmarks(
+            frame,
+            results_pose.pose_landmarks,
+            mp_pose.POSE_CONNECTIONS,
+            landmark_drawing_spec=mp_drawing_pose.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
+            connection_drawing_spec=mp_drawing_pose.DrawingSpec(color=(255,0,0), thickness=2)
+        )
+        if detect_head_tilt_down_v2(results_pose.pose_landmarks, threshold=0.5):
+            cv2.putText(frame, "LEVANTA LA CABEZA", (50, 50),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+    
+    # Detección de contacto visual usando Face Mesh
+    if results_face.multi_face_landmarks:
+        for face_landmarks in results_face.multi_face_landmarks:
+            mp_drawing_face.draw_landmarks(
                 image=frame,
                 landmark_list=face_landmarks,
                 connections=mp_face_mesh.FACEMESH_TESSELATION,
-                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(0,255,0), thickness=1, circle_radius=1),
-                connection_drawing_spec=mp_drawing.DrawingSpec(color=(0,0,255), thickness=1))
-            
-            # Dibujar la conexión de los iris (opcional)
-            mp_drawing.draw_landmarks(
+                landmark_drawing_spec=mp_drawing_face.DrawingSpec(color=(0,255,0), thickness=1, circle_radius=1),
+                connection_drawing_spec=mp_drawing_face.DrawingSpec(color=(0,0,255), thickness=1)
+            )
+            mp_drawing_face.draw_landmarks(
                 image=frame,
                 landmark_list=face_landmarks,
                 connections=mp_face_mesh.FACEMESH_IRISES,
-                landmark_drawing_spec=mp_drawing.DrawingSpec(color=(255,255,0), thickness=1, circle_radius=1))
-            
-            # Detectar contacto visual usando la posición del iris
-            if detect_eye_contact_iris(face_landmarks):
-                cv2.putText(frame, "CONTACTO VISUAL", (50, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                landmark_drawing_spec=mp_drawing_face.DrawingSpec(color=(255,255,0), thickness=1, circle_radius=1)
+            )
+            if detect_eye_contact_iris(face_landmarks, threshold_ratio=0.1):
+                cv2.putText(frame, "CONTACTO VISUAL", (50, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
             else:
-                cv2.putText(frame, "SIN CONTACTO VISUAL", (50, 50),
-                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-
-    cv2.imshow("Deteccion de Contacto Visual con Iris", frame)
+                cv2.putText(frame, "SIN CONTACTO VISUAL", (50, 100),
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+    
+    cv2.imshow("Deteccion de Cabeza y Contacto Visual", frame)
     if cv2.waitKey(1) & 0xFF == 27:  # ESC para salir
         break
 
 cap.release()
 cv2.destroyAllWindows()
+pose.close()
 face_mesh.close()
