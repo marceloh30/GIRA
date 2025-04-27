@@ -18,7 +18,7 @@ face_mesh = mp_face_mesh.FaceMesh(
 
 def euclidean_distance(p1, p2):
     return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
-def detect_head_tilt_down_v2(pose_landmarks, threshold=-0.1):
+def detect_head_tilt_down_v2(pose_landmarks, threshold=0.1):
     """
     Detecta si la cabeza está inclinada hacia abajo usando el landmark de la nariz.
     Se compara la posición vertical de la nariz (índice 0) con el promedio de los hombros (índices 11 y 12)
@@ -44,11 +44,11 @@ def detect_head_tilt_down_v2(pose_landmarks, threshold=-0.1):
     norm_diff = diff / shoulder_width  # Normalizamos para compensar la distancia a la cámara.
 
     # Debug: descomenta para ver los valores en consola.
-    # print(f"nose.y: {nose.y:.3f}, shoulder_avg_y: {shoulder_avg_y:.3f}, norm_diff: {norm_diff:.3f}")
+    print(f"nose.y: {nose.y:.3f}, shoulder_avg_y: {shoulder_avg_y:.3f}, norm_diff: {norm_diff:.3f}")
 
     return norm_diff > threshold
 
-def detect_head_tilt_down(pose_landmarks, threshold=0.5):
+def detect_head_tilt_down(pose_landmarks, threshold=-0.7):
     """
     Detecta si la cabeza está inclinada hacia abajo usando los landmarks de Pose.
     Se compara el promedio vertical (y) de los ojos (índices 2 y 5) con el promedio
@@ -74,7 +74,7 @@ def detect_head_tilt_down(pose_landmarks, threshold=0.5):
     norm_diff = diff / shoulder_width
 
     # Debug: descomenta para ver los valores
-    # print(f"Head Tilt norm_diff: {norm_diff:.3f}")
+    print(f"Head Tilt norm_diff: {norm_diff:.3f}")
 
     return norm_diff > threshold
 
@@ -113,7 +113,7 @@ def detect_eye_contact_iris(face_landmarks, threshold_ratio=0.1):
     normalized_right = diff_right / right_eye_width if right_eye_width else float('inf')
 
     # Debug
-    print(f"Normalized Left: {normalized_left:.3f}, Normalized Right: {normalized_right:.3f}")
+    #print(f"Normalized Left: {normalized_left:.3f}, Normalized Right: {normalized_right:.3f}")
 
     return normalized_left < threshold_ratio and normalized_right < threshold_ratio
 
@@ -143,7 +143,7 @@ while True:
             landmark_drawing_spec=mp_drawing_pose.DrawingSpec(color=(0,255,0), thickness=2, circle_radius=3),
             connection_drawing_spec=mp_drawing_pose.DrawingSpec(color=(255,0,0), thickness=2)
         )
-        if detect_head_tilt_down_v2(results_pose.pose_landmarks, threshold=0.5):
+        if detect_head_tilt_down(results_pose.pose_landmarks):
             cv2.putText(frame, "LEVANTA LA CABEZA", (50, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
     
