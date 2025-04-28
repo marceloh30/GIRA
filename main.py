@@ -17,10 +17,15 @@ def main():
 
             cv2.imshow("GIRA Prototipo", frame)
             if cv2.waitKey(1) == 27: break
-    finally:
+    except Exception as e:
+        print(e)
         cap.release()
         cv2.destroyAllWindows()
         recorder.guardar_reporte("reporte.json")
-
+    """finally:
+        cap.release()
+        cv2.destroyAllWindows()
+        recorder.guardar_reporte("reporte.json")
+"""
 if __name__ == "__main__":
     main()
