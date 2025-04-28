@@ -44,13 +44,13 @@ def feedback(frame, detecciones: dict):
     """
     if detecciones['brazos_cruzados']:
         superponer_texto(frame, "BRAZOS CRUZADOS", (50,50))
-        superponer_avatar(frame, AVATAR_BORED, 0, 0)
+        #superponer_avatar(frame, AVATAR_BORED, 0, 0)
     if detecciones['hombros_caidos']:
         superponer_texto(frame, "POSTURA ENCOGIDA", (50,100))
-        superponer_avatar(frame, AVATAR_CONFUSED, 110, 0)
+        #superponer_avatar(frame, AVATAR_CONFUSED, 110, 0)
     if detecciones['cabeza_baja']:
         superponer_texto(frame, "LEVANTA LA CABEZA", (50,150))
-        superponer_avatar(frame, AVATAR_WARN, 220, 0)
+        #superponer_avatar(frame, AVATAR_WARN, 220, 0)
     if not detecciones['contacto_visual']:
         superponer_texto(frame, "SIN CONTACTO VISUAL", (50,200), color=(0,0,255))
     else:

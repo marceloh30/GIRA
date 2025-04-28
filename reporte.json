@@ -1,0 +1,10 @@
+{
+  "timestamp": "2025-04-28T11:47:33.753070",
+  "total_frames": 473,
+  "metrics": {
+    "brazos_cruzados": 14.59,
+    "hombros_caidos": 3.59,
+    "cabeza_baja": 0.0,
+    "sin_contacto_visual": 8.88
+  }
+}

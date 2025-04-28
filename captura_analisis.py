@@ -1,6 +1,7 @@
 import cv2
 import mediapipe as mp
 import math
+import traceback
 
 ### Captura con OpenCV:
 def abrir_camara(index: int = 0) -> cv2.VideoCapture:
@@ -29,6 +30,15 @@ face_mesh = mp_face_mesh.FaceMesh(
     min_detection_confidence=0.5,
     min_tracking_confidence=0.5
 )
+
+
+def safe_detect(func, *args, **kwargs):
+    """Ejecuta func(*args) y atrapa excepciones, devolviendo False si falla."""
+    try:
+        return func(*args, **kwargs)
+    except Exception:
+        print(f"[ERROR] en {func.__name__}:\n", traceback.format_exc())
+        return False
 
 def distancia_euclidea(p1, p2) -> float:
     return math.hypot(p1.x - p2.x, p1.y - p2.y)
@@ -115,10 +125,10 @@ def process_frame(frame: cv2.Mat) -> dict:
     res_p = pose.process(rgb)
     if res_p.pose_landmarks:
         lm = res_p.pose_landmarks
-        out['brazos_cruzados'] = detectar_brazos_cruzados(lm)
-        out['hombros_caidos']  = detectar_hombros_caidos(lm)
-        out['cabeza_baja']     = detectar_cabeza_baja(lm)
+        out['brazos_cruzados'] = safe_detect(detectar_brazos_cruzados, lm)
+        out['hombros_caidos']  = safe_detect(detectar_hombros_caidos, lm)
+        out['cabeza_baja']     = safe_detect(detectar_cabeza_baja, lm)
     res_f = face_mesh.process(rgb)
     if res_f.multi_face_landmarks:
-        out['contacto_visual'] = detectar_contacto_visual(res_f.multi_face_landmarks[0])
+        out['contacto_visual'] = safe_detect(detectar_contacto_visual, res_f.multi_face_landmarks[0])
     return out
