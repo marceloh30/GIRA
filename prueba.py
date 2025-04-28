@@ -43,7 +43,7 @@ def euclidean_distance(p1, p2):
     """Calcula la distancia euclidiana entre dos puntos."""
     return math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2)
 
-def detect_crossed_arms_relative(landmarks, mp_pose, x_threshold=0.1):
+def detectar_brazos_cruzados(landmarks, mp_pose, x_threshold=0.1):
     """
     Detecta brazos cruzados calculando distancia entre munecas y hombros contrarios
     """
@@ -90,7 +90,7 @@ def detect_brazos_cruzados(landmarks, mp_pose, ratio_threshold=0.8):
     
     return left_crossed and right_crossed
 '''
-def detect_hombros_caidos(landmarks, mp_pose, posture_threshold=0.25):
+def detectar_hombros_caidos(landmarks, mp_pose, posture_threshold=0.25):
     """
     Detecta una postura encogida (hombros caídos) comparando la posición vertical
     promedio de los hombros con la de las caderas.
@@ -128,7 +128,7 @@ while True:
         )
 
         # Detección de brazos cruzados
-        if detect_crossed_arms_relative(results.pose_landmarks, mp_pose):
+        if detectar_brazos_cruzados(results.pose_landmarks, mp_pose):
             cv2.putText(frame, "BRAZOS CRUZADOS", (50, 50),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             # Superponer avatar aburrido
@@ -136,7 +136,7 @@ while True:
             frame[0:h, 0:w] = avatar_bored
 
         # Detección de postura encogida
-        if detect_hombros_caidos(results.pose_landmarks, mp_pose):
+        if detectar_hombros_caidos(results.pose_landmarks, mp_pose):
             cv2.putText(frame, "POSTURA ENCOGIDA", (50, 100),
                         cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             # Opcionalmente, se puede superponer otro avatar (por ejemplo, avatar_confused)
