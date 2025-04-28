@@ -1,26 +1,26 @@
-from captura_analisis import abrir_camara, process_frame
+from captura_analisis import abrir_camara, procesar_frame
 from feedback import feedback
-from analisis_evolutivo import SessionRecorder
+from analisis_evolutivo import Sesion
 import cv2
 
 def main():
     cap = abrir_camara()
-    recorder = SessionRecorder("sesion.avi")
+    recorder = Sesion("sesion.avi")
     try:
         while True:
             ret, frame = cap.read()
             if not ret: break
 
-            det = process_frame(frame)
+            det = procesar_frame(frame)
             feedback(frame, det)
-            recorder.record(frame, det)
+            recorder.grabar(frame, det)
 
             cv2.imshow("GIRA Prototipo", frame)
             if cv2.waitKey(1) == 27: break
     finally:
         cap.release()
         cv2.destroyAllWindows()
-        recorder.save_report("reporte.json")
+        recorder.guardar_reporte("reporte.json")
 
 if __name__ == "__main__":
     main()

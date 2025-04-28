@@ -2,7 +2,7 @@ import cv2
 import json
 from datetime import datetime
 
-class SessionRecorder:
+class Sesion:
     """
     Graba métricas de gestos por sesión y permite un análisis evolutivo.
     """
@@ -20,7 +20,7 @@ class SessionRecorder:
             fourcc = cv2.VideoWriter_fourcc(*'XVID')
             self.out = cv2.VideoWriter(out_video_path, fourcc, 20.0, (640,480))
 
-    def record(self, frame, detecciones: dict):
+    def grabar(self, frame, detecciones: dict):
         self.frames += 1
         if self.out:
             self.out.write(frame)
@@ -31,7 +31,7 @@ class SessionRecorder:
         if not detecciones['contacto_visual']:
             self.counts['sin_contacto_visual'] += 1
 
-    def summary(self) -> dict:
+    def resumen(self) -> dict:
         """
         Devuelve métricas porcentuales de la sesión.
         """
@@ -42,11 +42,11 @@ class SessionRecorder:
             for k,v in self.counts.items()
         }
 
-    def save_report(self, path: str):
+    def guardar_reporte(self, path: str):
         data = {
             'timestamp': datetime.now().isoformat(),
             'total_frames': self.frames,
-            'metrics': self.summary()
+            'metrics': self.resumen()
         }
         with open(path, 'w') as f:
             json.dump(data, f, indent=2)

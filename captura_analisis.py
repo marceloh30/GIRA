@@ -107,7 +107,7 @@ def detectar_contacto_visual(face_landmarks, umbral = 0.1) -> bool:
 
     return izq_normalizado < umbral and der_normalizado < umbral
 
-def process_frame(frame: cv2.Mat) -> dict:
+def procesar_frame(frame: cv2.Mat) -> dict:
     """
     Devuelve un dict con:
       - brazos_cruzados
