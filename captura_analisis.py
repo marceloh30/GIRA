@@ -56,7 +56,7 @@ def detectar_brazos_cruzados(landmarks, umbral_x = 0.1) -> bool:
     cruzado_der = abs(mun_izq.x - hombro_der.x) < umbral_x
     return cruzado_izq and cruzado_der
 
-def detectar_hombros_caidos(landmarks, umbral_postura = 0.25) -> bool:
+def detectar_hombros_caidos(landmarks, umbral_postura = 0.4) -> bool: #Falta normalizar
     """
     Detecta postura encogida comparando hombros vs caderas
     """
@@ -69,7 +69,7 @@ def detectar_hombros_caidos(landmarks, umbral_postura = 0.25) -> bool:
     y_caderas = (cadera_izq.y + cadera_der.y) / 2
     return (y_caderas - y_hombros) < umbral_postura
 
-def detectar_cabeza_baja(landmarks, umbral = -0.1) -> bool:
+def detectar_cabeza_baja(landmarks, umbral = -0.7) -> bool:
     """
     Detecta inclinación de cabeza hacia abajo usando nariz vs hombros
     """
