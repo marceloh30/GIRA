@@ -3,6 +3,13 @@ import numpy as np
 import os
 
 ASSETS_DIR = "assets"
+TAMANO_IMG = 100 #Para definir tamano de imagen de avatares a mostrar
+
+POSICIONES_X = {
+    'brazos_cruzados': 0,
+    'hombros_caidos':  160,
+    'cabeza_baja':     320
+}
 
 ''' ###Intento realizado con pygame que no funcionó
 import pygame
@@ -60,12 +67,14 @@ def superponer_imagen(frame, img_bgr, alpha, x, y, tamano=(150,150)):
         roi[:, :, c] = (alpha * img_bgr[:, :, c] + (1 - alpha) * roi[:, :, c])
     frame[y:y+h, x:x+w] = roi
 
-def superponer_texto(frame: np.ndarray, texto: str, posicion: tuple, color: tuple=(0,0,255), escala: float=1, thickness: int=2):
+def superponer_texto(frame, texto, x, y, color=(0,0,255), tamano=0.5):
     """
     Escribe texto sobre el frame en la posición dada.
     """
-    cv2.putText(frame, texto, posicion, cv2.FONT_HERSHEY_SIMPLEX, escala, color, thickness)
-    
+    cv2.putText(frame, texto, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 
+                tamano, color, 2)#, lineType=cv2.LINE_AA)
+
+
 def feedback(frame, detecciones: dict):
     """
     Superpone texto y avatar según detecciones:
@@ -74,17 +83,26 @@ def feedback(frame, detecciones: dict):
       - cabeza_baja     → AVATAR_WARN
       - contacto_visual False → marca en rojo
     """
+    fh, fw = frame.shape[:2]
+    espacio_x = (fw - TAMANO_IMG * 3) if (fw > TAMANO_IMG * 3) else 0
+    
     if detecciones['brazos_cruzados']:
-        superponer_texto(frame, "BRAZOS CRUZADOS", (50,50))
-        superponer_imagen(frame, AVATAR_ABURRIDO, ALPHA_ABURRIDO, 0, 0, tamano=(150,150))
+        x = POSICIONES_X['brazos_cruzados'] + espacio_x//5
+        superponer_texto(frame, "BRAZOS CRUZADOS", x-10, TAMANO_IMG + 20, tamano=0.4)
+        superponer_imagen(frame, AVATAR_ABURRIDO, ALPHA_ABURRIDO, x, 0, tamano=(TAMANO_IMG,TAMANO_IMG))
     if detecciones['hombros_caidos']:
-        superponer_texto(frame, "POSTURA ENCOGIDA", (50,100))
-        superponer_imagen(frame, AVATAR_CONFUNDIDO, ALPHA_CONFUNDIDO, 0, 0, tamano=(150,150))
+        x = POSICIONES_X['hombros_caidos'] + espacio_x//5
+        superponer_texto(frame, "POSTURA ENCOGIDA", x-10, TAMANO_IMG + 20, tamano=0.4)
+        superponer_imagen(frame, AVATAR_CONFUNDIDO, ALPHA_CONFUNDIDO, x, 0, tamano=(TAMANO_IMG,TAMANO_IMG))
     if detecciones['cabeza_baja']:
-        superponer_texto(frame, "LEVANTA LA CABEZA", (50,150))
-        superponer_imagen(frame, AVATAR_PREOCUPADO, ALPHA_PREOCUPADO, 0, 0, tamano=(150,150))
-    if not detecciones['contacto_visual']:
-        superponer_texto(frame, "SIN CONTACTO VISUAL", (50,200), color=(0,0,255))
-        superponer_imagen(frame, AVATAR_ABURRIDO, ALPHA_ABURRIDO, 0, 0, tamano=(150,150))
-    else:
-        superponer_texto(frame, "CONTACTO VISUAL", (50,200), color=(0,255,0))
+        x = POSICIONES_X['cabeza_baja'] + espacio_x//5
+        superponer_texto(frame, "LEVANTA LA CABEZA", x-10, TAMANO_IMG + 20, tamano=0.4)
+        superponer_imagen(frame, AVATAR_PREOCUPADO, ALPHA_PREOCUPADO, x, 0, tamano=(TAMANO_IMG,TAMANO_IMG))
+    # Contacto visual (texto fijo en parte inferior):
+    texto = "CONTACTO VISUAL" if detecciones["contacto_visual"]  else "SIN CONTACTO VISUAL"
+    color = (0,255,0) if detecciones["contacto_visual"] else (0,0,255)
+    # Medimos el ancho del texto para centrarlo
+    (tw, th), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+    tx = (fw - tw) // 2
+    ty = fh - 20
+    superponer_texto(frame, texto, tx, ty, color)
