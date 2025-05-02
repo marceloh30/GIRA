@@ -24,22 +24,33 @@ class Sesion:
         self.frames += 1
         if self.out:
             self.out.write(frame)
-        # Acumula eventos
-        for k in ['brazos_cruzados','hombros_caidos','cabeza_baja']:
-            if detecciones[k]:
-                self.counts[k] += 1
-        if not detecciones['contacto_visual']:
-            self.counts['sin_contacto_visual'] += 1
+        try:
+            if detecciones.get('brazos_cruzados', False):
+                self.counts['brazos_cruzados'] += 1
+                # print(f"[DEBUG] Frame {self.frames}: brazos_cruzados=True")
+            if detecciones.get('hombros_caidos', False):
+                self.counts['hombros_caidos'] += 1
+                # print(f"[DEBUG] Frame {self.frames}: hombros_caidos=True")
+            if detecciones.get('cabeza_baja', False):
+                self.counts['cabeza_baja'] += 1
+                # print(f"[DEBUG] Frame {self.frames}: cabeza_baja=True")
+            # Para contacto visual, contamos los negativos
+            if not detecciones.get('contacto_visual', True):
+                self.counts['sin_contacto_visual'] += 1
+                # print(f"[DEBUG] Frame {self.frames}: sin_contacto_visual=True")
+        except Exception as e:
+            # Nunca dejamos que un fallo de conteo interrumpa la grabación
+            print(f"[ERROR] Sesion.grabar fallo al actualizar counts: {e}")
 
     def resumen(self) -> dict:
         """
         Devuelve métricas porcentuales de la sesión.
         """
         if self.frames == 0:
-            return {}
+            return { k: 0.0 for k in self.counts }
         return {
             k: round(v / self.frames * 100, 2)
-            for k,v in self.counts.items()
+            for k, v in self.counts.items()
         }
 
     def guardar_reporte(self, path: str):

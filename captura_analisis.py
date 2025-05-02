@@ -54,9 +54,12 @@ def detectar_brazos_cruzados(landmarks, umbral_x = 0.1) -> bool:
 
     cruzado_izq = abs(mun_der.x - hombro_izq.x) < umbral_x
     cruzado_der = abs(mun_izq.x - hombro_der.x) < umbral_x
+    
+    #print("cruzado izq:",cruzado_izq," - cruzado der:", cruzado_der)
+    
     return cruzado_izq and cruzado_der
 
-def detectar_hombros_caidos(landmarks, umbral_postura = 0.4) -> bool: #Falta normalizar
+def detectar_hombros_caidos(landmarks, umbral_postura = 1.8) -> bool: #Falta normalizar
     """
     Detecta postura encogida comparando hombros vs caderas
     """
@@ -65,9 +68,18 @@ def detectar_hombros_caidos(landmarks, umbral_postura = 0.4) -> bool: #Falta nor
     cadera_izq = landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP]
     cadera_der = landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP]
 
+    #uso ancho de hombros para normalizar la medida:
+    largo_hombros = distancia_euclidea(hombro_izq, hombro_der)
+    if largo_hombros == 0:
+        return False
+    
     y_hombros = (hombro_izq.y + hombro_der.y) / 2
     y_caderas = (cadera_izq.y + cadera_der.y) / 2
-    return (y_caderas - y_hombros) < umbral_postura
+    dif_normalizada = (y_caderas - y_hombros) / largo_hombros
+    
+    #print("hombros caidos - Dif normalizada:", dif_normalizada)
+
+    return dif_normalizada < umbral_postura
 
 def detectar_cabeza_baja(landmarks, umbral = -0.7) -> bool:
     """
@@ -83,6 +95,8 @@ def detectar_cabeza_baja(landmarks, umbral = -0.7) -> bool:
         return False
 
     dif_normalizada = (nariz.y - y_hombros) / largo_hombros
+    #print("cabeza baja - dif normalizada:", dif_normalizada)
+    
     return dif_normalizada > umbral
 
 def detectar_contacto_visual(face_landmarks, umbral = 0.1) -> bool:
@@ -104,7 +118,9 @@ def detectar_contacto_visual(face_landmarks, umbral = 0.1) -> bool:
     centro_iris_der = face_landmarks.landmark[473]
     dif_der = (ojo_der_extizq.x + ojo_der_extder.x) / 2
     der_normalizado = abs(centro_iris_der.x - dif_der) / (largo_ojo_der if largo_ojo_der else 1)
-
+    
+    #print("Ojo Izq: ", izq_normalizado, " - Ojo der: ", der_normalizado)
+    
     return izq_normalizado < umbral and der_normalizado < umbral
 
 def procesar_frame(frame: cv2.Mat) -> dict:

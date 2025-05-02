@@ -1,5 +1,6 @@
 entorno_virt/
 __pycache__/
-reporte
+reporte_*
+sesion_*
 reporte.json
 sesion.avi

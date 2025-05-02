@@ -19,13 +19,17 @@ def main():
             if cv2.waitKey(1) == 27: break
     except Exception as e:
         print(e)
+
+    finally:
         cap.release()
         cv2.destroyAllWindows()
+        print("\nResultados de la sesión:\n","Frames totales: ",recorder.frames)
+        print("Numero de frames de cada gesto inadecuado:\n")
+        for gesto, numeroFrames in recorder.counts.items():
+            print(f"{gesto}: Encontrado en {numeroFrames} frames")
+            print(f"Detectado en un {(100*numeroFrames/recorder.frames):.2f}% del tiempo.")
         recorder.guardar_reporte("reporte.json")
-    """finally:
-        cap.release()
-        cv2.destroyAllWindows()
-        recorder.guardar_reporte("reporte.json")
-"""
+        
+
 if __name__ == "__main__":
     main()

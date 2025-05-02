@@ -57,15 +57,15 @@ def superponer_imagen(frame, img_bgr, alpha, x, y, tamano=(150,150)):
     img_bgr = cv2.resize(img_bgr, tamano, interpolation=cv2.INTER_AREA)
     alpha   = cv2.resize(alpha,   tamano, interpolation=cv2.INTER_AREA)
     # (luego el mismo código para superponer)
-    h, w = tamano[1], tamano[0]
-    fh, fw, _ = frame.shape
-    if x + w > fw or y + h > fh:
-        w = min(w, fw - x); h = min(h, fh - y)
-        img_bgr = img_bgr[0:h, 0:w]; alpha = alpha[0:h, 0:w]
-    roi = frame[y:y+h, x:x+w]
+    altura_img, ancho_img = tamano[1], tamano[0]
+    altura_frame, ancho_frame, _ = frame.shape
+    if x + ancho_img > ancho_frame or y + altura_img > altura_frame:
+        ancho_img = min(ancho_img, ancho_frame - x); altura_img = min(altura_img, altura_frame - y)
+        img_bgr = img_bgr[0:altura_img, 0:ancho_img]; alpha = alpha[0:altura_img, 0:ancho_img]
+    roi = frame[y:y+altura_img, x:x+ancho_img]
     for c in range(3):
         roi[:, :, c] = (alpha * img_bgr[:, :, c] + (1 - alpha) * roi[:, :, c])
-    frame[y:y+h, x:x+w] = roi
+    frame[y:y+altura_img, x:x+ancho_img] = roi
 
 def superponer_texto(frame, texto, x, y, color=(0,0,255), tamano=0.5):
     """
@@ -83,8 +83,8 @@ def feedback(frame, detecciones: dict):
       - cabeza_baja     → AVATAR_WARN
       - contacto_visual False → marca en rojo
     """
-    fh, fw = frame.shape[:2]
-    espacio_x = (fw - TAMANO_IMG * 3) if (fw > TAMANO_IMG * 3) else 0
+    altura_frame, ancho_frame = frame.shape[:2]
+    espacio_x = (ancho_frame - TAMANO_IMG * 3) if (ancho_frame > TAMANO_IMG * 3) else 0
     
     if detecciones['brazos_cruzados']:
         x = POSICIONES_X['brazos_cruzados'] + espacio_x//5
@@ -102,7 +102,7 @@ def feedback(frame, detecciones: dict):
     texto = "CONTACTO VISUAL" if detecciones["contacto_visual"]  else "SIN CONTACTO VISUAL"
     color = (0,255,0) if detecciones["contacto_visual"] else (0,0,255)
     # Medimos el ancho del texto para centrarlo
-    (tw, th), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
-    tx = (fw - tw) // 2
-    ty = fh - 20
-    superponer_texto(frame, texto, tx, ty, color)
+    (ancho_texto, th), _ = cv2.getTextSize(texto, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)
+    texto_x = (ancho_frame - ancho_texto) // 2
+    texto_y = altura_frame - 20
+    superponer_texto(frame, texto, texto_x, texto_y, color)
